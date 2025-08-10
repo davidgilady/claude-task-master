@@ -14,16 +14,14 @@ COPY package*.json ./
 # Copy the application code (needed for prepare script)
 COPY . .
 
-# Install dependencies (omit dev dependencies)
-RUN npm ci --omit=dev && \
-  npm cache clean --force
-
-# Create necessary directories and set permissions
-RUN mkdir -p /app/.taskmaster && \
-  chown -R taskmaster:nodejs /app
+RUN chown -R taskmaster:nodejs /app
 
 # Switch to non-root user
 USER taskmaster
+
+# Install dependencies (omit dev dependencies)
+RUN npm ci --omit=dev && \
+  npm cache clean --force
 
 # Expose port for MCP server (if needed)
 EXPOSE 3000
