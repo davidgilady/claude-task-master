@@ -4,7 +4,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import packageJson from '../../package.json' with { type: 'json' };
 import ProviderRegistry from '../../src/provider-registry/index.js';
-import logger from './logger.js';
 import { MCPProvider } from './providers/mcp-provider.js';
 
 // Load environment variables
@@ -24,115 +23,114 @@ class TaskMasterMCPServer {
 			version: packageJson.version
 		};
 
-    this.server = new FastMCP(this.options);
-    this.initialized = false;
+		this.server = new FastMCP(this.options);
+		this.initialized = false;
 
-    // Bind methods
-    this.init = this.init.bind(this);
-    this.start = this.start.bind(this);
-    this.stop = this.stop.bind(this);
+		// Bind methods
+		this.init = this.init.bind(this);
+		this.start = this.start.bind(this);
+		this.stop = this.stop.bind(this);
 
-    // Setup logging
-    this.logger = logger;
-  }
+		// Setup logging
+		this.logger = logger;
+	}
 
-  /**
-   * Initialize the MCP server with necessary tools and routes
-   */
-  async init() {
-    if (this.initialized) return;
+	/**
+	 * Initialize the MCP server with necessary tools and routes
+	 */
+	async init() {
+		if (this.initialized) return;
 
-    // Pass the manager instance to the tool registration function
-    registerTaskMasterTools(this.server, this.asyncManager);
+		// Pass the manager instance to the tool registration function
+		registerTaskMasterTools(this.server, this.asyncManager);
 
-    this.initialized = true;
+		this.initialized = true;
 
-    return this;
-  }
+		return this;
+	}
 
-  /**
-   * Start the MCP server
-   */
-  async start() {
-    if (!this.initialized) {
-      await this.init();
-    }
+	/**
+	 * Start the MCP server
+	 */
+	async start() {
+		if (!this.initialized) {
+			await this.init();
+		}
 
-    this.server.on('connect', (event) => {
-      event.session.server.sendLoggingMessage({
-        data: {
-          context: event.session.context,
-          message: `MCP Server connected: ${event.session.name}`
-        },
-        level: 'info'
-      });
-      this.registerRemoteProvider(event.session);
-    });
+		this.server.on('connect', (event) => {
+			event.session.server.sendLoggingMessage({
+				data: {
+					context: event.session.context,
+					message: `MCP Server connected: ${event.session.name}`
+				},
+				level: 'info'
+			});
+			this.registerRemoteProvider(event.session);
+		});
 
-    // Start the FastMCP server with increased timeout
-    const transportType = process.env.MCP_TRANSPORT_TYPE || 'stdio';
-    await this.server.start({
-      transportType,
-      timeout: 120000 // 2 minutes timeout (in milliseconds)
-    });
+		// Start the FastMCP server with increased timeout
+		await this.server.start({
+			transportType: 'stdio',
+			timeout: 120000 // 2 minutes timeout (in milliseconds)
+		});
 
-    return this;
-  }
+		return this;
+	}
 
-  /**
-   * Register both MCP providers with the provider registry
-   */
-  registerRemoteProvider(session) {
-    // Check if the server has at least one session
-    if (session) {
-      // Make sure session has required capabilities
-      if (!session.clientCapabilities || !session.clientCapabilities.sampling) {
-        session.server.sendLoggingMessage({
-          data: {
-            context: session.context,
-            message: `MCP session missing required sampling capabilities, providers not registered`
-          },
-          level: 'info'
-        });
-        return;
-      }
+	/**
+	 * Register both MCP providers with the provider registry
+	 */
+	registerRemoteProvider(session) {
+		// Check if the server has at least one session
+		if (session) {
+			// Make sure session has required capabilities
+			if (!session.clientCapabilities || !session.clientCapabilities.sampling) {
+				session.server.sendLoggingMessage({
+					data: {
+						context: session.context,
+						message: `MCP session missing required sampling capabilities, providers not registered`
+					},
+					level: 'info'
+				});
+				return;
+			}
 
-      // Register MCP provider with the Provider Registry
+			// Register MCP provider with the Provider Registry
 
-      // Register the unified MCP provider
-      const mcpProvider = new MCPProvider();
-      mcpProvider.setSession(session);
+			// Register the unified MCP provider
+			const mcpProvider = new MCPProvider();
+			mcpProvider.setSession(session);
 
-      // Register provider with the registry
-      const providerRegistry = ProviderRegistry.getInstance();
-      providerRegistry.registerProvider('mcp', mcpProvider);
+			// Register provider with the registry
+			const providerRegistry = ProviderRegistry.getInstance();
+			providerRegistry.registerProvider('mcp', mcpProvider);
 
-      session.server.sendLoggingMessage({
-        data: {
-          context: session.context,
-          message: `MCP Server connected`
-        },
-        level: 'info'
-      });
-    } else {
-      session.server.sendLoggingMessage({
-        data: {
-          context: session.context,
-          message: `No MCP sessions available, providers not registered`
-        },
-        level: 'warn'
-      });
-    }
-  }
+			session.server.sendLoggingMessage({
+				data: {
+					context: session.context,
+					message: `MCP Server connected`
+				},
+				level: 'info'
+			});
+		} else {
+			session.server.sendLoggingMessage({
+				data: {
+					context: session.context,
+					message: `No MCP sessions available, providers not registered`
+				},
+				level: 'warn'
+			});
+		}
+	}
 
-  /**
-   * Stop the MCP server
-   */
-  async stop() {
-    if (this.server) {
-      await this.server.stop();
-    }
-  }
+	/**
+	 * Stop the MCP server
+	 */
+	async stop() {
+		if (this.server) {
+			await this.server.stop();
+		}
+	}
 }
 
 export default TaskMasterMCPServer;
