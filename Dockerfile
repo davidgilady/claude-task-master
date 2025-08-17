@@ -31,4 +31,4 @@ ENV NODE_ENV=production
 ENV PATH="/app/bin:$PATH"
 
 # Default command - run as MCP server
-CMD ["node", "mcp-server/server.js"]
+CMD ["node", "/app/mcp-server/server.js"]
