@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Create a non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
-  adduser -S taskmaster -u 1001
+  adduser -S taskmaster -u 1001 -G nodejs
 
 # Copy package files first for better caching
 COPY package*.json ./
